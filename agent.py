@@ -3,23 +3,24 @@
 import os
 import sys
 import time
-from socket import socket
+import socket
 import re
 
-def sendData(now,line):
-    message = 'test.random_value %s %s\n' % (line,now)
- #   sock.sendall(message)
+def sendData(now,line,name):
+    message = 'connection_holding_time_%s.%s %s %s\n' % (name,HOSTNAME,line,now)
+    sock.sendall(message)
     print message
 
-
+HOSTNAME = socket.gethostname().replace('.','_')
 SERVER = "10.7.33.23"
 PORT = 2003
-DELIMITER = '</log-entry>'
-FILE_NAME = '/var/log/processing/requests/online_all_queries.log'
-STRING_REGEXP = r'^<log-entry date="([0-9a-zA-Z\ :"]+)">.*<dispatch-time-in-ms>([0-9]+)</dispatch-time-in-ms>$'
+DELIMITER = '====================================='
+FILE_NAME = '/var/log/processing/db/online_connections_holding_times.log'
+#STRING_REGEXP = r'^<log-entry date="([0-9a-zA-Z\ :"]+)">.*<dispatch-time-in-ms>([0-9]+)</dispatch-time-in-ms>$'
+STRING_REGEXP = r'^Date: ([0-9a-zA-Z\ :"]+) Connection holding time:\ ([0-9]+) Pool: \w+@(\w+).*$'
 BLOCKSIZE = 1024*1024
 
-sock = socket()
+sock = socket.socket()
 try:
     sock.connect( (SERVER,PORT) )
 except:
@@ -50,8 +51,11 @@ while True:
         old_data = data[last_index+len(DELIMITER):]
         data = ' '.join(data[:last_index].split()).split(DELIMITER)
         for i in data:
-            string = i.strip()
-            print len(string),re.findall(STRING_REGEXP,string)
-#        print data,os.fstat(fd).st_ino
-#        for i in data:
-#            sendData(time.time(),i)
+            i = i.strip()
+            if len(i)==0:
+                continue
+            i = re.findall(STRING_REGEXP,i)[0]
+            now = time.mktime(time.strptime(i[0],'%d %b %Y %H:%M:%S'))
+            value = i[1]
+            name = i[2]
+            sendData(now,value,name)
