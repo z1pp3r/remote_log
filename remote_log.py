@@ -1,7 +1,7 @@
 import os
 import sys
 import time
-import threading
+import socket
 
 class Parser(object):
     def __init__(self,filename=None,**kwargs):
@@ -112,3 +112,28 @@ class Parser(object):
             self.__start()
         except KeyboardInterrupt:
             print 'Exiting'
+
+class carbon_client(object):
+    def __init__(self,**kwargs):
+        self.__carbon_host = kwargs.get('host','127.0.0.1')
+        self.__carbon_port = kwargs.get('port',2003)
+        self.__connect()
+        self.__hostname = socket.gethostname().replace('.','_')
+
+    def __del__(self):
+        pass
+
+    def __connect(self):
+        self.__socket = socket.socket()
+        self.__socket.connect(self.__carbon_host,self.__carbon_port)
+
+    def __disconnect(self):
+        self.__socket.close()
+
+    def __reconnect(self):
+        self.__disconnect()
+        self.__connect()
+
+    def send(self,name,value,time):
+        __message = '%s.%s %s %s\n' % (name,self.__hostname,value,time)
+        self.__socket.send(__message)
