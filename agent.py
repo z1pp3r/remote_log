@@ -4,30 +4,20 @@ import os
 import sys
 import time
 from socket import socket
+import re
 
 def sendData(now,line):
     message = 'test.random_value %s %s\n' % (line,now)
-    sock.sendall(message)
-    '''
-    now = int( time.time() )
-    lines = []
-    #We're gonna report all three loadavg values
-    loadavg = get_loadavg()
-    lines.append("system.loadavg_1min %s %d" % (loadavg[0],now))
-    lines.append("system.loadavg_5min %s %d" % (loadavg[1],now))
-    lines.append("system.loadavg_15min %s %d" % (loadavg[2],now))
-    message = '\n'.join(lines) + '\n' #all lines must end in a newline
-    print "sending message\n"
-    print '-' * 80
+ #   sock.sendall(message)
     print message
-    print
-    sock.sendall(message)
-    time.sleep(delay)
-    '''
 
 
-SERVER = "127.0.0.1"
+SERVER = "10.7.33.23"
 PORT = 2003
+DELIMITER = '</log-entry>'
+FILE_NAME = '/var/log/processing/requests/online_all_queries.log'
+STRING_REGEXP = r'^<log-entry date="([0-9a-zA-Z\ :"]+)">.*<dispatch-time-in-ms>([0-9]+)</dispatch-time-in-ms>$'
+BLOCKSIZE = 1024*1024
 
 sock = socket()
 try:
@@ -36,8 +26,6 @@ except:
     print "Couldn't connect to %(server)s on port %(port)d" % { 'server':SERVER, 'port':PORT }
     sys.exit(1)
 
-
-FILE_NAME = '/home/litvinov/testfile'
 fd = os.open(FILE_NAME,os.O_RDONLY|os.O_APPEND)
 old_data = ''
 
@@ -51,12 +39,19 @@ while True:
         if os.fstat(fd).st_ino!= FILE_INODE:
             os.close(fd)
             fd = os.open(FILE_NAME,os.O_RDONLY|os.O_APPEND)
-        data = old_data + os.read(fd,256)
+        data = old_data + os.read(fd,BLOCKSIZE)
         if len(data)==0:
             continue
-        last_index = len(data)-1-data[::-1].index('\n')
-        old_data = data[last_index+1:]
-        data = data[:last_index].split('\n')
-        print data,os.fstat(fd).st_ino
+        try:
+            last_index = len(data)-data[::-1].index(DELIMITER[::-1])-len(DELIMITER)
+        except ValueError:
+            old_data = data
+            continue
+        old_data = data[last_index+len(DELIMITER):]
+        data = ' '.join(data[:last_index].split()).split(DELIMITER)
         for i in data:
-            sendData(time.time(),i)
+            string = i.strip()
+            print len(string),re.findall(STRING_REGEXP,string)
+#        print data,os.fstat(fd).st_ino
+#        for i in data:
+#            sendData(time.time(),i)
