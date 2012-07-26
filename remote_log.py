@@ -3,18 +3,19 @@ import sys
 import time
 import threading
 
-class Parser(threading.Thread):
-    def __init__(self,filename=None,blocksize = 1024):
+class Parser(object):
+    def __init__(self,filename=None,**kwargs):
         self.__filename = filename
         self.__file_inode = 0
         self.__fd = None
-        self.__block_size = blocksize
+        self.__block_size = kwargs.get('blocksize',1)
+        self.__delimiter = kwargs.get('delimiter','56')
 
     def __del__(self):
         self.__closeFile(silent=True)
 
-    def __handleData(self):
-        pass
+    def __handleData(self,string):
+        print string
 
     def __reload_file(self):
         if self.__fd is not None:
@@ -76,8 +77,13 @@ class Parser(threading.Thread):
             else:
                 return True
 
+    def setDelimiter(self,delimiter):
+        self.__delimiter = delimiter
 
-    def start(self):
+    def getDelimiter(self):
+        return self.__delimiter
+
+    def __start(self):
         __status_ok,_ = self.test()
         if not __status_ok:
             pass
@@ -86,8 +92,23 @@ class Parser(threading.Thread):
             while True:
                 if not self.__isFileExists():
                     self.__reload_file()
-                data = os.read(self.__fd,self.__block_size)
-                if len(data)>0:
-                    print data
-                elif len(data)<self.__block_size:
-                    time.sleep(0.5)
+                data = old_data + os.read(self.__fd,self.__block_size)
+                if len(data)==0:
+                    time.sleep(0.1)
+                    continue
+                try:
+                    last_index = len(data)-data[::-1].index(self.__delimiter[::-1])-len(self.__delimiter)
+                except ValueError:
+                    old_data = data
+                    continue
+                else:
+                    old_data = data[last_index+len(self.__delimiter):]
+                    data = data[:last_index].split(self.__delimiter)
+                    for line in data:
+                        self.__handleData(' '.join(line.split()))
+
+    def start(self):
+        try:
+            self.__start()
+        except KeyboardInterrupt:
+            print 'Exiting'
