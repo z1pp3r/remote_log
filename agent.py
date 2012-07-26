@@ -6,7 +6,7 @@ import time
 from socket import socket
 
 def sendData(now,line):
-    message = 'test.random_value %s %s\n' % (now,line)
+    message = 'test.random_value %s %s\n' % (line,now)
     sock.sendall(message)
     '''
     now = int( time.time() )
@@ -27,7 +27,7 @@ def sendData(now,line):
 
 
 SERVER = "127.0.0.1"
-PORT = 1234
+PORT = 2003
 
 sock = socket()
 try:
